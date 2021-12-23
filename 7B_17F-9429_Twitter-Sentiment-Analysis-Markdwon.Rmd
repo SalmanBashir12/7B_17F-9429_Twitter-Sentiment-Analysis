@@ -14,10 +14,133 @@ knitr::opts_chunk$set(echo = TRUE)
 This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+Loading dataset taken from kaggle
+```{r}
+install.packages("tm")  # for text mining
+install.packages("SnowballC") # for text stemming
+install.packages("wordcloud") # word-cloud generator 
+install.packages("RColorBrewer") # color palettes
+install.packages("syuzhet") # for sentiment analysis
+install.packages("ggplot2") # for plotting graphs
+install.packages("readr") #for reading dataset
+###nowLoading libraries
+library(tm)
+library(SnowballC)
+library(wordcloud)
+library(RColorBrewer)
+library(syuzhet)
+library(ggplot2)
+library(readr)
 ```
+```{r}
+data <- read.csv("C:\\Users\\Hp\\Documents\\R\\7B_17F-9429_Twitter-Sentiment-Analysis\\dataset.csv")
+head(data)
+```
+omitting non-usable columns
+```{r}
+data <-na.omit(data)
+head(data)
+```
+
+
+The dataset has got so many other relevant information which include the name of the candidate that is involved, sentiment expressed and so on; but we will be limited to the text and the sentiment columns.
+
+```{r}
+install.packages('tidyverse')
+library(tidyverse)
+
+data_1 <- data %>% 
+                  select(text, sentiment)
+head(data_1)
+
+```
+for checking proportion of classes in sentiment column
+```{r}
+
+str(data_1)
+
+round(prop.table(table(data_1$sentiment)),2)
+```
+converting into vector corp for further processing
+
+```{r}
+corpus = VCorpus(VectorSource(data_1$text))
+##first text stored in corpus###
+as.character(corpus[[1]])
+
+```
+#With this code here, we are taking all of the text to lower case, remove numbers, remove puntuation, stopwords and so o
+##cleaning of dataset##
+```{r}
+corpus = tm_map(corpus, content_transformer(tolower))
+corpus = tm_map(corpus, removeNumbers)
+corpus = tm_map(corpus, removePunctuation)
+corpus = tm_map(corpus, removeWords, stopwords("english"))
+corpus = tm_map(corpus, stemDocument)
+corpus = tm_map(corpus, stripWhitespace)
+##showing text after removal and updation of above mentioned things##
+as.character(corpus[[1]])
+
+```
+
+#for posititve tweets# creating seats#
+
+```{r}
+positive <- subset(data_1,sentiment=="Positive")
+head(positive)
+wordcloud(positive$text, max.words = 100, scale = c(3,0.5))
+
+
+```
+
+## for negative tweets#
+
+```{r}
+
+negative <- subset(data_1,sentiment=="Negative")
+head(negative)
+wordcloud(negative$text, max.words = 100, scale = c(3,0.5))
+```
+#for neutral creating worldcloud#
+```{r}
+neutral <- subset(data_1,sentiment=="Neutral")
+head(neutral)
+wordcloud(neutral$text, max.words = 100, scale = c(3,0.5))
+
+```
+#data splitting##
+
+```{r}
+
+dtm = DocumentTermMatrix(corpus)
+dtm
+dim(dtm)
+dtm = removeSparseTerms(dtm, 0.999)
+dim(dtm)
+
+
+convert_count <- function(x) {
+    y <- ifelse(x > 0, 1,0)
+    y <- factor(y, levels=c(0,1), labels=c("No", "Yes"))
+    y
+}
+datasetNB <- apply(dtm, 2, convert_count)
+
+dataset = as.data.frame(as.matrix(datasetNB))
+dataset$Class = data_1$sentiment
+str(dataset$Class)
+
+set.seed(222)
+split = sample(2,nrow(dataset),prob = c(0.75,0.25),replace = TRUE)
+train_set = dataset[split == 1,]
+test_set = dataset[split == 2,] 
+
+prop.table(table(train_set$Class))
+prop.table(table(test_set$Class))
+
+
+```
+
 
 ## Including Plots
 
